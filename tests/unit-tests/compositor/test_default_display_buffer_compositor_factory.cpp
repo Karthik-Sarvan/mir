@@ -32,6 +32,7 @@
 #include <mir/test/doubles/stub_output_filter.h>
 #include <mir/test/doubles/stub_renderer.h>
 
+#include <mir/renderer/blitter_renderer_factory.h>
 #include <mir/renderer/renderer_factory.h>
 
 #include <gmock/gmock.h>
@@ -58,7 +59,10 @@ public:
 class StubBlitterRendererFactory : public mir::renderer::BlitterRendererFactory
 {
 public:
-    auto create_renderer_for(mg::CPUAddressableDisplayAllocator&, std::shared_ptr<mg::BlitterRenderingProvider>) const
+    auto create_renderer_for(
+        std::shared_ptr<mg::BlitterRenderingProvider>,
+        mg::CPUAddressableDisplayAllocator&,
+        std::shared_ptr<mg::GLConfig const>) const
         -> std::unique_ptr<mir::renderer::Renderer> override
     {
         return std::make_unique<mtd::StubRenderer>();
@@ -260,7 +264,7 @@ TEST_F(DefaultDisplayBufferCompositorFactory, prefers_blitter_provider_when_gl_p
     ON_CALL(*blitter_provider, suitability_for_allocator(_)).WillByDefault(Return(mg::probe::supported));
 
     auto blitter_renderer_factory = std::make_shared<StrictMock<mtd::MockBlitterRendererFactory>>();
-    EXPECT_CALL(*blitter_renderer_factory, create_renderer_for(_, Eq(blitter_provider)))
+    EXPECT_CALL(*blitter_renderer_factory, create_renderer_for(Eq(blitter_provider), _, _))
         .WillOnce(Return(ByMove(std::make_unique<mtd::StubRenderer>())));
 
     mc::DefaultDisplayBufferCompositorFactory factory{
@@ -290,7 +294,7 @@ TEST_F(DefaultDisplayBufferCompositorFactory, prefers_blitter_provider_when_gl_p
     ON_CALL(*blitter_provider, suitability_for_allocator(_)).WillByDefault(Return(mg::probe::supported));
 
     auto blitter_renderer_factory = std::make_shared<StrictMock<mtd::MockBlitterRendererFactory>>();
-    EXPECT_CALL(*blitter_renderer_factory, create_renderer_for(_, Eq(blitter_provider)))
+    EXPECT_CALL(*blitter_renderer_factory, create_renderer_for(Eq(blitter_provider), _, _))
         .WillOnce(Return(ByMove(std::make_unique<mtd::StubRenderer>())));
 
     mc::DefaultDisplayBufferCompositorFactory factory{
@@ -410,7 +414,7 @@ TEST_F(DefaultDisplayBufferCompositorFactory, does_not_select_blitter_provider_w
     ON_CALL(*unsupported, suitability_for_allocator(_)).WillByDefault(Return(mg::probe::unsupported));
 
     auto blitter_renderer_factory = std::make_shared<StrictMock<mtd::MockBlitterRendererFactory>>();
-    EXPECT_CALL(*blitter_renderer_factory, create_renderer_for(_, Eq(supported)))
+    EXPECT_CALL(*blitter_renderer_factory, create_renderer_for(Eq(supported), _, _))
         .WillOnce(Return(ByMove(std::make_unique<mtd::StubRenderer>())));
 
     mc::DefaultDisplayBufferCompositorFactory factory{
