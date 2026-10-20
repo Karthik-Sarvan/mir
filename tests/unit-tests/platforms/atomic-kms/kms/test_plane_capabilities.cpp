@@ -433,4 +433,3 @@ TEST_F(PlaneCapabilitiesTest, unreadable_in_formats_blob_fails_discovery)
 
     EXPECT_THAT([this] { discover(); }, ThrowsMessage<std::system_error>(HasSubstr("IN_FORMATS")));
 }
-
