@@ -31,6 +31,7 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <new>
 #include <optional>
 #include <ranges>
 #include <span>
@@ -383,6 +384,46 @@ TEST_F(PlaneCapabilitiesTest, primary_with_inverted_zpos_range_fails_discovery)
     mock_drm.set_property_range(drm_device, primary_zpos_id, DRM_MODE_PROP_RANGE, 4, 0);
 
     EXPECT_THAT([this] { discover(); }, ThrowsMessage<std::runtime_error>(HasSubstr("No usable primary plane")));
+}
+
+TEST_F(PlaneCapabilitiesTest, rebuild_publishes_new_snapshot_and_leaves_old_one_unchanged)
+{
+    mga::PlaneCapabilityState state;
+    state.rebuild(drm_fd, target_crtc_id);
+    auto const first = state.current();
+    ASSERT_NE(first, nullptr);
+
+    set_in_formats(overlay_id, {});
+    state.rebuild(drm_fd, target_crtc_id);
+    auto const second = state.current();
+
+    ASSERT_NE(second, nullptr);
+    EXPECT_THAT(ids_of(second->overlays), Not(Contains(overlay_id)));
+    EXPECT_THAT(ids_of(first->overlays), Contains(overlay_id));
+}
+
+TEST_F(PlaneCapabilitiesTest, failed_rebuild_logs_and_leaves_no_capabilities)
+{
+    mga::PlaneCapabilityState state;
+    state.rebuild(drm_fd, target_crtc_id);
+    ASSERT_NE(state.current(), nullptr);
+
+    set_in_formats(primary_id, {});
+    EXPECT_CALL(*logger, log(_, HasSubstr("Failed to discover plane capabilities"), _)).Times(1);
+    EXPECT_NO_THROW(state.rebuild(drm_fd, target_crtc_id));
+    EXPECT_EQ(state.current(), nullptr);
+}
+
+TEST_F(PlaneCapabilitiesTest, rebuild_clears_capabilities_when_discovery_throws_non_runtime_error)
+{
+    mga::PlaneCapabilityState state;
+    state.rebuild(drm_fd, target_crtc_id);
+    ASSERT_NE(state.current(), nullptr);
+
+    EXPECT_CALL(mock_drm, drmModeGetPropertyBlob(drm_fd, _)).WillOnce(Throw(std::bad_alloc{}));
+
+    EXPECT_THROW(state.rebuild(drm_fd, target_crtc_id), std::bad_alloc);
+    EXPECT_EQ(state.current(), nullptr);
 }
 
 TEST_F(PlaneCapabilitiesTest, unreadable_in_formats_blob_fails_discovery)
