@@ -104,8 +104,9 @@ class ObjectProperties
 public:
     struct Prop
     {
-        uint32_t id;
-        uint64_t value;
+        uint32_t id{};
+        uint64_t value{};
+        std::shared_ptr<drmModePropertyRes> metadata;
     };
 
     ObjectProperties(int drm_fd, uint32_t object_id, uint32_t object_type);
@@ -116,6 +117,13 @@ public:
     uint64_t operator[](char const* name) const;
     uint32_t id_for(char const* property_name) const;
     bool has_property(char const* property_name) const;
+
+    /**
+     * Returns the property metadata, or nullptr if the property is absent.
+     *
+     * The returned pointer is valid for the lifetime of this ObjectProperties.
+     */
+    auto metadata(char const* property_name) const -> drmModePropertyRes const*;
 
     std::unordered_map<std::string, Prop>::const_iterator begin() const;
     std::unordered_map<std::string, Prop>::const_iterator end() const;
